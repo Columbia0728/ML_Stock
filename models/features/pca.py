@@ -31,6 +31,6 @@ def pca_reduction(input_csv, output_csv, n_components=100):
     print(f"PCA reduction completed! Saved to {output_csv}")
 
 if __name__ == "__main__":
-    csv_path = "ML_comp/data/cleaned_sample.csv"
-    output_path = "ML_comp/data/sample_pca.csv"
+    csv_path = "ML_stock/data/cleaned_sample.csv"
+    output_path = "ML_stock/data/sample_pca.csv"
     pca_reduction(csv_path, output_path)
