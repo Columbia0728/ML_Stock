@@ -1,0 +1,66 @@
+import pandas as pd
+import numpy as np
+import os
+from sklearn.feature_selection import SelectKBest, f_classif, chi2, mutual_info_classif
+from sklearn.preprocessing import MinMaxScaler
+
+def filter_selection(input_csv, output_csv, method='f_classif', k=10):
+    # 讀取資料
+    df = pd.read_csv(input_csv)
+
+    # 檢查必要欄位
+    if "ID" not in df.columns or "飆股" not in df.columns:
+        raise ValueError("輸入資料缺少必要欄位 'ID' 或 '飆股'")
+
+    # 分離 ID、目標與特徵
+    ids = df["ID"]
+    target = df["飆股"]
+    features = df.drop(columns=["ID", "飆股"])
+
+    # 僅保留數值型欄位
+    features = features.select_dtypes(include=[np.number])
+
+    # 特徵標準化（chi2 需要非負數）
+    if method == 'chi2':
+        features_scaled = MinMaxScaler().fit_transform(features)
+    else:
+        features_scaled = features.values
+
+    # 選擇評分方法
+    score_func_map = {
+        'f_classif': f_classif,
+        'chi2': chi2,
+        'mutual_info': mutual_info_classif
+    }
+    if method not in score_func_map:
+        raise ValueError("method 必須是 'f_classif', 'chi2', 或 'mutual_info'")
+    score_func = score_func_map[method]
+
+    # 執行特徵選擇
+    selector = SelectKBest(score_func=score_func, k=k)
+    features_selected = selector.fit_transform(features_scaled, target)
+    selected_columns = features.columns[selector.get_support()]
+    scores = selector.scores_[selector.get_support()]
+    # 建立新 DataFrame 並輸出
+    df_selected = pd.DataFrame(features_selected, columns=selected_columns)
+    df_selected.insert(0, "飆股", target)
+    df_selected.insert(0, "ID", ids)
+
+    os.makedirs(os.path.dirname(output_csv), exist_ok=True) if os.path.dirname(output_csv) else None
+    df_selected.to_csv(output_csv, index=False)
+
+    # 回傳特徵分數表
+    feature_scores = pd.DataFrame({
+        'Feature': selected_columns,
+        'Score': scores
+    }).sort_values(by='Score', ascending=False)
+
+    return df_selected, feature_scores
+
+    # 範例執行
+    if __name__ == "__main__":
+    input_csv = "your_input.csv"
+    output_csv = "your_output.csv"
+    df_filtered, df_scores = filter_selection(input_csv, output_csv, method='f_classif', k=10)
+    print(df_scores)
+
